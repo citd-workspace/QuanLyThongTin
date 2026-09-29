@@ -1,7 +1,7 @@
 use QuanLySieuThi;
 go
 
--- (5) Stored Procedure
+-- (7) Stored Procedure
 -- thêm khách hàng 
 CREATE PROCEDURE sp_ThemKhachHang
     @hoTen nvarchar(100), @sdt varchar(15), @diaChi nvarchar(255),@email varchar(100)
@@ -46,8 +46,42 @@ AS
         UPDATE SanPham SET giaBan = @giaBanMoi WHERE maSP = @maSP;
     END;
 go
+-- 6. Thống kê doanh thu theo khoảng ngày
+CREATE PROCEDURE sp_ThongKeDoanhThuTheoKhoangNgay
+    @tuNgay DATE,
+    @denNgay DATE
+AS
+BEGIN
+    SELECT 
+        CAST(ngayLap AS DATE) AS Ngay,
+        COUNT(maHD) AS SoHoaDon,
+        SUM(tongTien) AS TongDoanhThu
+    FROM HoaDon
+    WHERE CAST(ngayLap AS DATE) BETWEEN @tuNgay AND @denNgay
+    GROUP BY CAST(ngayLap AS DATE)
+    ORDER BY Ngay;
+END;
+go
 
--- (3) Functions:
+-- 7. Tìm danh sách hóa đơn theo khách hàng
+CREATE PROCEDURE sp_TimHoaDonTheoKhachHang
+    @maKH INT
+AS
+BEGIN
+    SELECT 
+        hd.maHD,
+        hd.ngayLap,
+        kh.hoTen AS TenKhachHang,
+        nv.hoTen AS TenNhanVien,
+        hd.tongTien
+    FROM HoaDon hd
+    JOIN KhachHang kh ON hd.maKH = kh.maKH
+    JOIN NhanVien nv ON hd.maNV = nv.maNV
+    WHERE hd.maKH = @maKH
+    ORDER BY hd.ngayLap;
+END;
+go
+-- (5) Functions:
 -- tính tổng doanh thu 1 ngày
 CREATE FUNCTION fn_TinhTongDoanhThuNgay(@ngay date)
 RETURNS FLOAT
@@ -78,7 +112,41 @@ AS
         SELECT maHD,ngayLap,tongTien FROM HoaDon WHERE maKH = @maKH
     );
 go
+-- 4. Tính tổng tiền của một hóa đơn
+CREATE FUNCTION fn_TinhTongTienHoaDon
+(
+    @maHD INT
+)
+RETURNS FLOAT
+AS
+BEGIN
+    DECLARE @tongTien FLOAT;
 
+    SELECT @tongTien = SUM(soLuongBan * donGia)
+    FROM ChiTietHoaDon
+    WHERE maHD = @maHD;
+
+    RETURN ISNULL(@tongTien, 0);
+END;
+go
+
+-- 5. Tính tổng số lượng đã bán của một sản phẩm
+CREATE FUNCTION fn_TongSoLuongBanSanPham
+(
+    @maSP VARCHAR(10)
+)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @tongSoLuong INT;
+
+    SELECT @tongSoLuong = SUM(soLuongBan)
+    FROM ChiTietHoaDon
+    WHERE maSP = @maSP;
+
+    RETURN ISNULL(@tongSoLuong, 0);
+END;
+go
 -- (5) Triggers:
 -- 1. Tự động trừ tồn kho khi bán hàng
 CREATE TRIGGER trg_TruToKhoKhiBanHang on ChiTietHoaDon
@@ -189,4 +257,51 @@ BEGIN
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
     END CATCH
 END;
+go
+-- (1) Cursor
+-- Kiểm tra tình trạng tồn kho của từng sản phẩm
+DECLARE @MaSP VARCHAR(10);
+DECLARE @TenSP NVARCHAR(100);
+DECLARE @SoLuongTon INT;
+
+DECLARE Cur_KiemTraTonKho CURSOR FOR
+SELECT MaSP, TenSP, SoLuongTon
+FROM SanPham;
+
+OPEN Cur_KiemTraTonKho;
+
+FETCH NEXT FROM Cur_KiemTraTonKho
+INTO @MaSP, @TenSP, @SoLuongTon;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    IF @SoLuongTon = 0
+    BEGIN
+        PRINT N'LOG: Sản phẩm ' + @MaSP 
+            + N' - ' + @TenSP 
+            + N' | Tình trạng: HẾT HÀNG';
+    END
+    ELSE IF @SoLuongTon < 100
+    BEGIN
+        PRINT N'LOG: Sản phẩm ' + @MaSP 
+            + N' - ' + @TenSP 
+            + N' | Tình trạng: SẮP HẾT HÀNG'
+            + N' | Tồn: ' 
+            + CAST(@SoLuongTon AS NVARCHAR(20));
+    END
+    ELSE
+    BEGIN
+        PRINT N'LOG: Sản phẩm ' + @MaSP 
+            + N' - ' + @TenSP 
+            + N' | Tình trạng: CÒN HÀNG'
+            + N' | Tồn: ' 
+            + CAST(@SoLuongTon AS NVARCHAR(20));
+    END;
+
+    FETCH NEXT FROM Cur_KiemTraTonKho
+    INTO @MaSP, @TenSP, @SoLuongTon;
+END;
+
+CLOSE Cur_KiemTraTonKho;
+DEALLOCATE Cur_KiemTraTonKho;
 go
