@@ -1,0 +1,73 @@
+-- CAU 3.1. TAO 3 USERS VA MAT KHAU
+
+-- Tao tai khoan dang nhap tren SQL Server
+USE master;
+GO
+CREATE LOGIN GIAOVIEN WITH PASSWORD = 'GV@123456';
+CREATE LOGIN GIAOVU   WITH PASSWORD = 'GVu@123456';
+CREATE LOGIN SINHVIEN WITH PASSWORD = 'SV@123456';
+GO
+
+-- Tao user trong CSDL QLDeTai
+USE QLDeTai;
+GO
+CREATE USER GIAOVIEN FOR LOGIN GIAOVIEN;
+CREATE USER GIAOVU   FOR LOGIN GIAOVU;
+CREATE USER SINHVIEN FOR LOGIN SINHVIEN;
+GO
+
+-- CAU 3.2. PHAN QUYEN
+-- GIAOVU duoc xem va cap nhat tren tat ca cac bang
+USE QLDeTai;
+GO
+DECLARE @sql NVARCHAR(MAX) = N'';
+SELECT @sql += N'GRANT SELECT, UPDATE ON OBJECT::'
+    + QUOTENAME(SCHEMA_NAME(schema_id)) + N'.' + QUOTENAME(name)
+    + N' TO GIAOVU;' + CHAR(13)
+FROM sys.tables;
+EXEC sys.sp_executesql @sql;
+GO
+
+-- GIANGVIEN duoc xem cac thong tin lien quan
+GRANT SELECT ON dbo.GIANGVIEN TO GIAOVIEN;
+GRANT SELECT ON dbo.DETAI TO GIAOVIEN;
+GRANT SELECT ON dbo.HOIDONG TO GIAOVIEN;
+GRANT SELECT ON dbo.HUONGDAN TO GIAOVIEN;
+GRANT SELECT ON dbo.PHANBIEN TO GIAOVIEN;
+GRANT SELECT ON dbo.UYVIEN TO GIAOVIEN;
+GO
+
+-- GIANGVIEN chi cap nhat thong tin cua minh
+CREATE VIEW dbo.vw_ThongTinGiangVienCuaToi
+AS
+    SELECT GV.MaGV, GV.HoTen, GV.DiaChi
+    FROM dbo.GIANGVIEN AS GV
+    WHERE GV.MaGV =
+        (SELECT TK.MaGV
+         FROM dbo.TAIKHOAN_GV AS TK
+         WHERE TK.TenDangNhap = USER_NAME())
+WITH CHECK OPTION;
+GO
+
+GRANT SELECT, UPDATE ON dbo.vw_ThongTinGiangVienCuaToi TO GIAOVIEN;
+GO
+
+-- SINHVIEN duoc xem thong tin sinh vien, hoi dong va de tai
+GRANT SELECT ON dbo.SINHVIEN TO SINHVIEN;
+GRANT SELECT ON dbo.HOIDONG TO SINHVIEN;
+GRANT SELECT ON dbo.DETAI TO SINHVIEN;
+GO
+
+-- Tat ca ba user khong duoc xoa thong tin
+-- DENY DELETE tren tung user:
+
+DENY DELETE TO GIAOVIEN;
+DENY DELETE TO GIAOVU;
+DENY DELETE TO SINHVIEN;
+GO
+
+-- Kiem tra quyen DELETE bang ham HAS_PERMS_BY_NAME (ket qua 0 nghia la khong co quyen):
+
+SELECT USER_NAME() AS NguoiDung,
+       HAS_PERMS_BY_NAME('dbo.DETAI', 'OBJECT', 'DELETE') AS CoQuyenXoa;
+GO
