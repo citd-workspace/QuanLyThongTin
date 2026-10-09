@@ -1,6 +1,6 @@
--- CAU 3.1. TAO 3 USERS VA MAT KHAU
+-- CAU 3.1. Tạo ra 3 users: GIANGVIEN, GIAOVU và SINHVIEN, đặt mật khẩu tuỳ ý. 
 
--- Tao tai khoan dang nhap tren SQL Server
+-- Chay trong master
 USE master;
 GO
 CREATE LOGIN GIAOVIEN WITH PASSWORD = 'GV@123456';
@@ -8,7 +8,7 @@ CREATE LOGIN GIAOVU   WITH PASSWORD = 'GVu@123456';
 CREATE LOGIN SINHVIEN WITH PASSWORD = 'SV@123456';
 GO
 
--- Tao user trong CSDL QLDeTai
+-- Chay trong database cua bai tap
 USE QLDeTai;
 GO
 CREATE USER GIAOVIEN FOR LOGIN GIAOVIEN;
@@ -17,7 +17,8 @@ CREATE USER SINHVIEN FOR LOGIN SINHVIEN;
 GO
 
 -- CAU 3.2. PHAN QUYEN
--- GIAOVU duoc xem va cap nhat tren tat ca cac bang
+-- GIAOVU: xem va cap nhat tat ca cac bang
+
 USE QLDeTai;
 GO
 DECLARE @sql NVARCHAR(MAX) = N'';
@@ -28,46 +29,67 @@ FROM sys.tables;
 EXEC sys.sp_executesql @sql;
 GO
 
--- GIANGVIEN duoc xem cac thong tin lien quan
+
+-- GIANGVIEN: xem thong tin giang vien, de tai va hoi dong
+
 GRANT SELECT ON dbo.GIANGVIEN TO GIAOVIEN;
+GRANT SELECT ON dbo.GV_HDT TO GIAOVIEN;
+GRANT SELECT ON dbo.GV_PHDT TO GIAOVIEN;
+GRANT SELECT ON dbo.GV_UVDT TO GIAOVIEN;
 GRANT SELECT ON dbo.DETAI TO GIAOVIEN;
 GRANT SELECT ON dbo.HOIDONG TO GIAOVIEN;
-GRANT SELECT ON dbo.HUONGDAN TO GIAOVIEN;
-GRANT SELECT ON dbo.PHANBIEN TO GIAOVIEN;
-GRANT SELECT ON dbo.UYVIEN TO GIAOVIEN;
+GRANT SELECT ON dbo.HOIDONG_GV TO GIAOVIEN;
+GRANT SELECT ON dbo.HOIDONG_DT TO GIAOVIEN;
+GRANT SELECT ON dbo.HOCVI TO GIAOVIEN;
+GRANT SELECT ON dbo.HOCHAM TO GIAOVIEN;
+GRANT SELECT ON dbo.CHUYENNGANH TO GIAOVIEN;
+GRANT SELECT ON dbo.GV_HV_CN TO GIAOVIEN;
 GO
 
--- GIANGVIEN chi cap nhat thong tin cua minh
+-- Neu giao vien can xem ten sinh vien gan voi de tai, cap them quyen tren hai bang lien quan:
+
+GRANT SELECT ON dbo.SINHVIEN TO GIAOVIEN;
+GRANT SELECT ON dbo.SV_DETAI TO GIAOVIEN;
+GO
+
+-- GIANGVIEN: chi cap nhat thong tin cua minh
+-- Tao bang lien ket tai khoan database voi ma giang vien
+CREATE TABLE dbo.TAIKHOAN_GV
+(
+    TenUser SYSNAME NOT NULL PRIMARY KEY,
+    MaGV CHAR(5) NOT NULL UNIQUE,
+    CONSTRAINT FK_TAIKHOAN_GV_GIANGVIEN
+        FOREIGN KEY (MaGV) REFERENCES dbo.GIANGVIEN(MaGV)
+);
+GO
+
+-- View chi hien thi mot so truong thong tin ca nhan duoc phep cap nhat
 CREATE VIEW dbo.vw_ThongTinGiangVienCuaToi
 AS
-    SELECT GV.MaGV, GV.HoTen, GV.DiaChi
+    SELECT GV.MaGV, GV.TenGV, GV.DiaChi, GV.SDT, GV.NamSinh
     FROM dbo.GIANGVIEN AS GV
     WHERE GV.MaGV =
         (SELECT TK.MaGV
          FROM dbo.TAIKHOAN_GV AS TK
-         WHERE TK.TenDangNhap = USER_NAME())
+         WHERE TK.TenUser = USER_NAME())
 WITH CHECK OPTION;
 GO
 
 GRANT SELECT, UPDATE ON dbo.vw_ThongTinGiangVienCuaToi TO GIAOVIEN;
 GO
 
--- SINHVIEN duoc xem thong tin sinh vien, hoi dong va de tai
+
+-- SINHVIEN: xem thong tin sinh vien, hoi dong va de tai
 GRANT SELECT ON dbo.SINHVIEN TO SINHVIEN;
 GRANT SELECT ON dbo.HOIDONG TO SINHVIEN;
 GRANT SELECT ON dbo.DETAI TO SINHVIEN;
 GO
 
--- Tat ca ba user khong duoc xoa thong tin
--- DENY DELETE tren tung user:
 
+
+
+-- Cam xoa du lieu cho ca ba user
 DENY DELETE TO GIAOVIEN;
 DENY DELETE TO GIAOVU;
 DENY DELETE TO SINHVIEN;
-GO
-
--- Kiem tra quyen DELETE bang ham HAS_PERMS_BY_NAME (ket qua 0 nghia la khong co quyen):
-
-SELECT USER_NAME() AS NguoiDung,
-       HAS_PERMS_BY_NAME('dbo.DETAI', 'OBJECT', 'DELETE') AS CoQuyenXoa;
 GO
