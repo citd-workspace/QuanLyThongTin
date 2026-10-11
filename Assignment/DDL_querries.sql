@@ -11,6 +11,14 @@ AS
     END;
 go
 
+-- EXEC
+EXEC sp_ThemKhachHang 
+    N'Đoàn Chấn Phong', 
+    '0899966591', 
+    N'Tân Bình, TP.HCM', 
+    'doanchanphong@gmail.com';
+go
+
 -- tìm kiếm sản phẩm theo tên
 CREATE PROCEDURE sp_TimKiemSanPhamTheoTen
     @keyword nvarchar(100)
@@ -18,6 +26,10 @@ AS
     BEGIN
         SELECT * FROM SanPham WHERE tenSP LIKE '%' + @keyword + '%';
     END;
+go
+
+-- EXEC
+EXEC sp_TimKiemSanPhamTheoTen N'Sữa';
 go
 
 -- Thống kê doan hthu theo nhân viên
@@ -30,12 +42,20 @@ AS
     END;
 go
 
+-- EXEC
+EXEC sp_ThongKeDoanhThuTheoNhanVien;
+go
+
 -- lấy danh sách sản phẩm sắp hết hàng 
 CREATE PROCEDURE sp_LayDanhSachSanPhamSapHetHangTheoSoLuong @soLuongTon int
 AS
     BEGIN
         SELECT maSP, tenSP, soLuongTon FROM SanPham WHERE soLuongTon < @soLuongTon;
     END;
+go
+
+-- EXEC
+EXEC sp_LayDanhSachSanPhamSapHetHangTheoSoLuong 40;
 go
 
 --cập nhật giá sản phẩm 
@@ -46,6 +66,17 @@ AS
         UPDATE SanPham SET giaBan = @giaBanMoi WHERE maSP = @maSP;
     END;
 go
+
+-- BEFORE UPDATE
+SELECT * FROM SanPham WHERE maSP = 'SP01';
+
+-- EXEC
+EXEC sp_CapNhatGiaSanPham 'SP01', 40000;
+
+-- AFTER UPDATE
+SELECT * FROM SanPham WHERE maSP = 'SP01';
+go
+
 -- 6. Thống kê doanh thu theo khoảng ngày
 CREATE PROCEDURE sp_ThongKeDoanhThuTheoKhoangNgay
     @tuNgay DATE,
@@ -61,6 +92,10 @@ BEGIN
     GROUP BY CAST(ngayLap AS DATE)
     ORDER BY Ngay;
 END;
+go
+
+-- EXEC
+EXEC sp_ThongKeDoanhThuTheoKhoangNgay '2024-01-01', '2024-12-31';
 go
 
 -- 7. Tìm danh sách hóa đơn theo khách hàng
@@ -81,6 +116,11 @@ BEGIN
     ORDER BY hd.ngayLap;
 END;
 go
+
+-- EXEC
+EXEC sp_TimHoaDonTheoKhachHang 1;
+go
+
 -- (5) Functions:
 -- tính tổng doanh thu 1 ngày
 CREATE FUNCTION fn_TinhTongDoanhThuNgay(@ngay date)
@@ -91,6 +131,10 @@ AS
         SELECT @tongDoanhThu = SUM(tongTien) FROM HoaDon WHERE cast(ngayLap as date) = @ngay;
         return isnull(@tongDoanhThu, 0);
     END;
+go
+
+-- EXEC
+SELECT dbo.fn_TinhTongDoanhThuNgay('2026-09-02') AS 'Doanh thu';
 go
 
 -- kiểm tra số lượng tồn của sản phẩm return int
@@ -104,6 +148,10 @@ AS
     END;
 go
 
+-- EXEC
+SELECT dbo.fn_KiemTraSoLuongTonSanPham('SP01') AS 'Số lượng tồn';
+go
+
 -- lấy danh sách hóa đơn của khách hàng return table
 CREATE FUNCTION fn_LayDanhSachHoaDonCuaKhachHang(@maKH int)
 RETURNS TABLE
@@ -112,6 +160,11 @@ AS
         SELECT maHD,ngayLap,tongTien FROM HoaDon WHERE maKH = @maKH
     );
 go
+
+-- EXEC
+SELECT * FROM dbo.fn_LayDanhSachHoaDonCuaKhachHang(1);
+go
+
 -- 4. Tính tổng tiền của một hóa đơn
 CREATE FUNCTION fn_TinhTongTienHoaDon
 (
@@ -128,6 +181,10 @@ BEGIN
 
     RETURN ISNULL(@tongTien, 0);
 END;
+go
+
+-- EXEC
+SELECT dbo.fn_TinhTongTienHoaDon(2) AS N'Tổng tiền hóa đơn';
 go
 
 -- 5. Tính tổng số lượng đã bán của một sản phẩm
@@ -147,6 +204,11 @@ BEGIN
     RETURN ISNULL(@tongSoLuong, 0);
 END;
 go
+
+-- EXEC
+SELECT dbo.fn_TongSoLuongBanSanPham('SP01') AS N'Tổng số lượng bán';
+go
+
 -- (5) Triggers:
 -- 1. Tự động trừ tồn kho khi bán hàng
 CREATE TRIGGER trg_TruToKhoKhiBanHang on ChiTietHoaDon
@@ -167,6 +229,17 @@ BEGIN
 END;
 go
 
+-- BEFORE TRIGGER
+SELECT maSP, tenSP, soLuongTon FROM SanPham WHERE maSP = 'SP01';
+
+-- TRIGGER EVENT
+INSERT INTO ChiTietHoaDon(maHD, maSP, soLuongBan, donGia) 
+VALUES (1, 'SP01', 5, 15000);
+
+-- AFTER TRIGGER
+SELECT maSP, tenSP, soLuongTon FROM SanPham WHERE maSP = 'SP01';
+go
+
 -- 2. Tự động cộng tồn kho khi nhập hàng
 CREATE TRIGGER trg_CongTonKhoKhiNhapHang on ChiTietPhieuNhap
 AFTER INSERT
@@ -184,6 +257,17 @@ BEGIN
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
     END CATCH
 END;
+go
+
+-- BEFORE TRIGGER
+SELECT maSP, tenSP, soLuongTon FROM SanPham WHERE maSP = 'SP01';
+
+-- TRIGGER EVENT
+INSERT INTO ChiTietPhieuNhap(maPN, maSP, soLuongNhap, giaNhap) 
+VALUES (1, 'SP01', 20, 10000);
+
+-- AFTER TRIGGER
+SELECT maSP, tenSP, soLuongTon FROM SanPham WHERE maSP = 'SP01';
 go
 
 -- 3. Chặn không cho phép bán nếu số lượng mua lớn hơn số lượng tồn
@@ -215,6 +299,17 @@ BEGIN
 END;
 go
 
+-- BEFORE TRIGGER
+SELECT maSP, tenSP, soLuongTon FROM SanPham WHERE maSP = 'SP01';
+
+-- TRIGGER EVENT
+INSERT INTO ChiTietHoaDon(maHD, maSP, soLuongBan, donGia) 
+VALUES (1, 'SP01', 1000, 15000);
+
+-- AFTER TRIGGER
+SELECT * FROM ChiTietHoaDon WHERE maHD = 1 AND maSP = 'SP01';
+go
+
 -- 4. Tự động cập nhật tổng tiền cho hóa đơn
 CREATE TRIGGER trg_CapNhatTongTienHoaDon on ChiTietHoaDon
 AFTER INSERT
@@ -235,6 +330,17 @@ BEGIN
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
     END CATCH
 END;
+go
+
+-- BEFORE TRIGGER
+SELECT maHD, tongTien FROM HoaDon WHERE maHD = 1;
+
+-- TRIGGER EVENT
+INSERT INTO ChiTietHoaDon(maHD, maSP, soLuongBan, donGia) 
+VALUES (1, 'SP02', 2, 20000);
+
+-- AFTER TRIGGER
+SELECT maHD, tongTien FROM HoaDon WHERE maHD = 1;
 go
 
 -- 5. Ngăn nhập nhầm giá bán < giá nhập
@@ -258,6 +364,20 @@ BEGIN
     END CATCH
 END;
 go
+
+-- BEFORE TRIGGER
+INSERT INTO SanPham(maSP, tenSP, giaNhap, giaBan, soLuongTon)
+VALUES ('SP99', N'Sản phẩm thử nghiệm', 50000, 40000, 10);
+
+-- TRIGGER EVENT
+UPDATE SanPham 
+SET giaBan = 10000 
+WHERE maSP = 'SP01';
+
+-- AFTER TRIGGER
+SELECT maSP, tenSP, giaNhap, giaBan FROM SanPham WHERE maSP = 'SP01';
+go
+
 -- (1) Cursor
 -- Kiểm tra tình trạng tồn kho của từng sản phẩm
 DECLARE @MaSP VARCHAR(10);
