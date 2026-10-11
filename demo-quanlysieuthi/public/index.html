@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo QuanLySieuThi - IE103</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Demo QuanLySieuThi – IE103</h1>
+    <span id="dbStatus" class="muted">Đang kiểm tra kết nối...</span>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="xuly">A) Xử lý thông tin</button>
+    <button class="tab" data-tab="trinhbay">B) Trình bày thông tin</button>
+  </nav>
+
+  <main>
+    <section id="tab-xuly" class="tabpane">
+      <div class="layout">
+        <aside id="menu"></aside>
+        <div id="panel"><p class="muted">Chọn một chức năng ở menu bên trái.</p></div>
+      </div>
+    </section>
+
+    <section id="tab-trinhbay" class="tabpane hidden">
+      <h2>Ảnh chụp màn hình report (Tableau / Power BI)</h2>
+      <div id="images"></div>
+      <h2>Biểu đồ trực tiếp trên HTML (dữ liệu load từ SQL Server)</h2>
+      <div id="charts"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
