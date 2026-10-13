@@ -15,13 +15,13 @@ ngược lại cập nhật và trả về 1.
 ngược lại cập nhật và trả về 1.
 */
 
-CREATE PROCEDURE sp_InsertGiaoVien_1(
+CREATE OR ALTER PROCEDURE sp_InsertGiaoVien_1(
  	@p_msgv CHAR(5), 
     @p_tengv NVARCHAR(30), 
     @p_sodt NVARCHAR(10), 
     @p_diachi VARCHAR(50), 
     @p_mshh INT, 
-    @p_namhh INT
+    @p_namhh smalldatetime
 )
 AS 
 BEGIN
@@ -34,16 +34,17 @@ BEGIN
     VALUES (@p_msgv, @p_tengv, @p_sodt, @p_diachi, @p_mshh, @p_namhh);
 END
 
-EXEC sp_InsertGiaoVien_1('00205', N'Nguyen Van A', '0901234567', N'TP.HCM', 3, '2026-01-01');
+EXEC sp_InsertGiaoVien_1 '00205', N'Nguyen Van A', '0901234567', N'TP.HCM', 3, '2026-01-01';
 
+SELECT * FROM giaovien
 -- --------------------------------------------------------------------------------------------------------------
-CREATE PROCEDURE sp_InsertGiaoVien_2(
+CREATE OR ALTER PROCEDURE sp_InsertGiaoVien_2(
  	@p_msgv CHAR(5), 
     @p_tengv NVARCHAR(30), 
     @p_sodt NVARCHAR(10), 
     @p_diachi VARCHAR(50), 
     @p_mshh INT, 
-    @p_namhh INT
+    @p_namhh smalldatetime
 )
 AS 
 BEGIN
@@ -56,16 +57,17 @@ BEGIN
     VALUES (@p_msgv, @p_tengv, @p_sodt, @p_diachi, @p_mshh, @p_namhh);
 END
 
-EXEC sp_InsertGiaoVien_2('00206', N'Pham Thi B', '0901234567', N'TP.HCM', 3, '2026-01-01');
+EXEC sp_InsertGiaoVien_2 '00206', N'Pham Thi B', '0901234567', N'TP.HCM', 1, '2026-01-01';
 
+SELECT * FROM giaovien
 -- --------------------------------------------------------------------------------------------------------------
-CREATE PROCEDURE sp_InsertGiaoVien_3(
+CREATE OR ALTER PROCEDURE sp_InsertGiaoVien_3(
  	@p_msgv CHAR(5), 
     @p_tengv NVARCHAR(30), 
     @p_sodt NVARCHAR(10), 
     @p_diachi VARCHAR(50), 
     @p_mshh INT, 
-    @p_namhh INT
+    @p_namhh smalldatetime
 )
 AS 
 BEGIN
@@ -76,16 +78,20 @@ BEGIN
 	
 	IF NOT EXISTS (SELECT 1 FROM hocham WHERE mshh = @p_mshh)
 	BEGIN 
-		RETURN 0;
+		RETURN 1;
 	END
 	
 	INSERT INTO giaovien (MSGV, TENGV, SODT, DIACHI, MSHH, NAMHH)
     VALUES (@p_msgv, @p_tengv, @p_sodt, @p_diachi, @p_mshh, @p_namhh);
 END
 
+EXEC sp_InsertGiaoVien_3 '00205', N'Nguyen Van A', '0901234567', N'TP.HCM', 2, '2026-01-01';
+EXEC sp_InsertGiaoVien_3 '00207', N'Nguyen Van A', '0901234567', N'TP.HCM', 3, '2026-01-01';
+
+SELECT * FROM giaovien
 -- --------------------------------------------------------------------------------------------------------------
 
-CREATE PROCEDURE sp_updateDeTai(
+CREATE OR ALTER PROCEDURE sp_updateDeTai(
 	@p_msdt CHAR(6),
 	@p_tendt NVARCHAR(30)
 )
@@ -102,9 +108,12 @@ BEGIN
 	RETURN 1;
 END
 
+EXEC sp_updateDeTai '97002', N'Hệ thống nhận dạng vân tay';
+
+SELECT * FROM detai
 -- --------------------------------------------------------------------------------------------------------------
 
-CREATE PROCEDURE sp_updateSinhVien(
+CREATE OR ALTER PROCEDURE sp_updateSinhVien(
 	@p_mssv CHAR(8),
 	@p_tensv NVARCHAR(30),
 	@p_diachi NVARCHAR(50)
@@ -123,8 +132,16 @@ BEGIN
 	
 	RETURN 1;
 END
+EXEC sp_updateSinhVien '13520001', N'Nguyễn Văn An Mới', N'Quận 7';
 
+SELECT * FROM sinhvien WHERE mssv = '13520001';
 
+EXEC sp_updateSinhVien '99999999', N'Sinh Vien Test', N'TP.HCM';
+
+DECLARE @result INT;
+EXEC @result = sp_updateSinhVien '13520001', N'Nguyễn Văn An Mới', N'Quận 7';
+
+SELECT @result AS ReturnValue;
 /* B. STORED PROCEDURES VỚI THAM SỐ VÀO VÀ RA
 1. Đưa vào TENHV trả ra: Số GV thỏa học vị, nếu không tìm thấy trả về 0.
 
@@ -139,26 +156,30 @@ Nếu trùng tên thì có báo lỗi không? Tại sao? Làm sao để hiện t
 Nếu trùng tên thì có báo lỗi không hay hệ thống sẽ đếm tất cả các đề tài của những giáo viên trùng tên đó?
 */
 
-CREATE PROCEDURE sp_getHocVi(
+CREATE OR ALTER PROCEDURE sp_getHocVi(
 	@p_tenhv NVARCHAR(30),
 	@p_count INT OUTPUT
 )
 AS 
 BEGIN
 	SELECT @p_count = COUNT(gv.msgv)
-	FROM giaovien gv 
-	JOIN hocvi hv ON gv.mshv = hv.mshv
-	WHERE hv.tenhv = @p_tenhv;
+    FROM giaovien gv
+    JOIN gv_hv_cn gvhv ON gv.msgv = gvhv.msgv
+    JOIN hocvi hv ON gvhv.mshv = hv.mshv
+    WHERE hv.tenhv = @p_tenhv;
 	
 	IF @p_count = 0
 		SET @p_count = 0;
 	RETURN @p_count;
 END
 
+DECLARE @count INT;
+EXEC sp_getHocVi N'Kỹ sư', @count OUTPUT;
+SELECT @count AS SoLuongGiaoVien;
 -- --------------------------------------------------------------------------------------------------------------
 
 -- B2
-CREATE PROCEDURE sp_getDiemTB_DeTai(
+CREATE OR ALTER PROCEDURE sp_getDiemTB_DeTai(
 	@p_msdt CHAR(6),
 	@p_diemtb FLOAT OUTPUT
 )
@@ -180,6 +201,12 @@ BEGIN
 	RETURN 1;
 END
 
+DECLARE @diemtb FLOAT;
+DECLARE @kq INT;
+
+EXEC @kq = sp_getDiemTB_DeTai '97001', @diemtb OUTPUT;
+
+SELECT @kq AS KetQua, @diemtb AS DiemTB;
 -- --------------------------------------------------------------------------------------------------------------
 
 -- B3
@@ -228,9 +255,17 @@ BEGIN
 	RETURN 1;
 END
 
+DECLARE @sdt NVARCHAR(10);
+DECLARE @count INT;
+DECLARE @message NVARCHAR(200);
+DECLARE @result INT;
+
+EXEC @result = sp_getSDT_GiaoVien N'Chu Tiến', @sdt OUTPUT, @count OUTPUT, @message OUTPUT;
+
+SELECT @result AS ReturnValue, @sdt AS SoDienThoai,  @count AS SoLuongTrungTen, @message AS ThongBao;
 -- --------------------------------------------------------------------------------------------------------------
 -- B4
-CREATE PROCEDURE sp_getDiemTB_HoiDong(
+CREATE OR ALTER PROCEDURE sp_getDiemTB_HoiDong(
 	@p_mshd INT,
 	@p_diemtb FLOAT OUTPUT
 )
@@ -253,11 +288,17 @@ BEGIN
 	RETURN 1;
 END
 
+DECLARE @diemtb FLOAT;
+DECLARE @result INT;
+
+EXEC @result = sp_getDiemTB_HoiDong 1, @diemtb OUTPUT;
+
+SELECT @result AS ReturnValue,  @diemtb AS DiemTrungBinh;
 -- --------------------------------------------------------------------------------------------------------------
 
 -- B5
 -- Nếu trùng tên: Hệ thống sẽ lấy tất cả các đề tài của những giáo viên trùng tên đó (không báo lỗi)
-CREATE PROCEDURE sp_getDeTaiCount_GiaoVien(
+CREATE OR ALTER PROCEDURE sp_getDeTaiCount_GiaoVien(
 	@p_tengv NVARCHAR(30),
 	@p_soluong_hddt INT OUTPUT,
 	@p_soluong_pbdt INT OUTPUT,
@@ -302,6 +343,14 @@ BEGIN
 	RETURN 1;
 END
 
+DECLARE @hddt INT;
+DECLARE @pbdt INT;
+DECLARE @msg NVARCHAR(200);
+DECLARE @result INT;
+
+EXEC @result = sp_getDeTaiCount_GiaoVien N'Chu Tiến', @hddt OUTPUT, @pbdt OUTPUT, @msg OUTPUT;
+
+SELECT @result AS ReturnValue, @hddt AS SoDeTaiHuongDan, @pbdt AS SoDeTaiPhanBien, @msg AS ThongBao;
 -- --------------------------------------------------------------------------------------------------------------
 
 
@@ -344,6 +393,12 @@ BEGIN
 	DELETE FROM detai WHERE msdt IN (SELECT msdt FROM deleted);
 END
 
+SELECT * FROM detai WHERE msdt = '97001';
+SELECT * FROM gv_hddt WHERE msdt = '97001';
+SELECT * FROM gv_pbdt WHERE msdt = '97001';
+SELECT * FROM gv_uvdt WHERE msdt = '97001';
+SELECT * FROM sv_detai WHERE msdt = '97001';
+SELECT * FROM hoidong_dt WHERE msdt = '97001';
 -- --------------------------------------------------------------------------------------------------------------
 
 -- C2
@@ -360,38 +415,43 @@ BEGIN
 		IF EXISTS (SELECT 1 FROM inserted i JOIN deleted d ON i.msgv <> d.msgv)
 		BEGIN
 			-- Cap nhat gv_hv_cn
-			UPDATE gv_hv_cn SET msgv = i.msgv
-			FROM inserted i
-			JOIN deleted d ON gv_hv_cn.msgv = d.msgv;
+			UPDATE gv_hv_cn
+			SET msgv = i.msgv
+			FROM gv_hv_cn, inserted i, deleted d
+			WHERE gv_hv_cn.msgv = d.msgv;
 			
 			-- Cap nhat gv_hddt
-			UPDATE gv_hddt SET msgv = i.msgv
-			FROM inserted i
-			JOIN deleted d ON gv_hddt.msgv = d.msgv;
+			UPDATE gv_hddt
+			SET msgv = i.msgv
+			FROM gv_hddt, inserted i, deleted d
+			WHERE gv_hddt.msgv = d.msgv;
 			
 			-- Cap nhat gv_pbdt
-			UPDATE gv_pbdt SET msgv = i.msgv
-			FROM inserted i
-			JOIN deleted d ON gv_pbdt.msgv = d.msgv;
+			UPDATE gv_pbdt
+			SET msgv = i.msgv
+			FROM gv_pbdt, inserted i, deleted d
+			WHERE gv_pbdt.msgv = d.msgv;
 			
 			-- Cap nhat gv_uvdt
-			UPDATE gv_uvdt SET msgv = i.msgv
-			FROM inserted i
-			JOIN deleted d ON gv_uvdt.msgv = d.msgv;
+			UPDATE gv_uvdt
+			SET msgv = i.msgv
+			FROM gv_uvdt, inserted i, deleted d
+			WHERE gv_uvdt.msgv = d.msgv;
 			
 			-- Cap nhat hoidong (msgv chu toa)
-			UPDATE hoidong SET msgv = i.msgv
-			FROM inserted i
-			JOIN deleted d ON hoidong.msgv = d.msgv;
+			UPDATE hoidong
+			SET msgv = i.msgv
+			FROM hoidong, inserted i, deleted d
+			WHERE hoidong.msgv = d.msgv;
 			
 			-- Cap nhat hoidong_gv
-			UPDATE hoidong_gv SET msgv = i.msgv
-			FROM inserted i
-			JOIN deleted d ON hoidong_gv.msgv = d.msgv;
+			UPDATE hoidong_gv
+			SET msgv = i.msgv
+			FROM hoidong_gv, inserted i, deleted d
+			WHERE hoidong_gv.msgv = d.msgv;
 		END
 	END
 END
-
 -- --------------------------------------------------------------------------------------------------------------
 
 -- C3
@@ -418,7 +478,23 @@ BEGIN
 		RETURN;
 	END
 END
+INSERT INTO detai VALUES ('97007', N'Test 1');
+INSERT INTO detai VALUES ('97008', N'Test 2');
+INSERT INTO detai VALUES ('97009', N'Test 3');
+INSERT INTO detai VALUES ('97010', N'Test 4');
+INSERT INTO detai VALUES ('97011', N'Test 5');
+INSERT INTO detai VALUES ('97012', N'Test 6');
+INSERT INTO detai VALUES ('97013', N'Test 7');
+INSERT INTO detai VALUES ('97014', N'Test 8');
 
+INSERT INTO hoidong_dt VALUES (1,'97007',N'Được');
+INSERT INTO hoidong_dt VALUES (1,'97008',N'Được');
+INSERT INTO hoidong_dt VALUES (1,'97009',N'Được');
+INSERT INTO hoidong_dt VALUES (1,'97010',N'Được');
+INSERT INTO hoidong_dt VALUES (1,'97011',N'Được');
+INSERT INTO hoidong_dt VALUES (1,'97012',N'Được');
+INSERT INTO hoidong_dt VALUES (1,'97013',N'Được');
+INSERT INTO hoidong_dt VALUES (1,'97014',N'Được');
 -- --------------------------------------------------------------------------------------------------------------
 
 -- C4
@@ -445,11 +521,13 @@ BEGIN
 	END
 END
 
+INSERT INTO sv_detai(mssv, msdt)
+VALUES ('13520001', '97005');
 -- --------------------------------------------------------------------------------------------------------------
 
 -- C5
 -- Kiem tra: Khi insert/update giaovien voi mshh = 'PHO GIAO SU' (mshh=1) thi phai co hoc vi 'Tien si' (mshv=4) hoac 'Tien si Khoa hoc' (mshv=5)
-CREATE TRIGGER trg_GiaoVien_PGS_Phai_TienSi
+CREATE OR ALTER TRIGGER trg_GiaoVien_PGS_Phai_TienSi
 ON giaovien
 AFTER INSERT, UPDATE
 AS
@@ -462,8 +540,8 @@ BEGIN
 		JOIN hocham h ON i.mshh = h.mshh
 		LEFT JOIN gv_hv_cn gv ON i.msgv = gv.msgv
 		LEFT JOIN hocvi hv ON gv.mshv = hv.mshv
-		WHERE h.tenhh = N'PHO GIAO SU'
-		AND (hv.tenhv <> N'TIEN SI' AND hv.tenhv <> N'TIEN SI KHOA HOC')
+		WHERE h.tenhh = N'PHÓ GIÁO SƯ'
+		AND (hv.tenhv <> N'Tiến sĩ' AND hv.tenhv <> N'Tiến sĩ Khoa học')
 	)
 	BEGIN
 		RAISERROR(N'Giao vien co hoc ham Pho Giao Su phai la Tien si hoac Tien si Khoa hoc!', 16, 1);
@@ -472,6 +550,8 @@ BEGIN
 	END
 END
 
+UPDATE giaovien SET mshh = 1
+WHERE msgv = '00203';
 -- --------------------------------------------------------------------------------------------------------------
 
 
@@ -501,6 +581,7 @@ BEGIN
 	RETURN @diemtb;
 END
 
+SELECT dbo.fn_GetDiemTB_DeTai('97001') AS DiemTB;
 -- --------------------------------------------------------------------------------------------------------------
 
 -- D2
@@ -523,6 +604,7 @@ BEGIN
 	RETURN @ketqua;
 END
 
+SELECT dbo.fn_GetKetQua_DeTai('97001') AS KetQua;
 -- --------------------------------------------------------------------------------------------------------------
 
 -- D3
@@ -542,6 +624,7 @@ BEGIN
 	RETURN;
 END
 
+SELECT * FROM dbo.fn_GetSinhVien_DeTai('97001');
 -- --------------------------------------------------------------------------------------------------------------
 
 
@@ -596,6 +679,7 @@ END
 CLOSE cur_diemtb;
 DEALLOCATE cur_diemtb;
 
+SELECT * FROM DETAI_DIEM;
 -- --------------------------------------------------------------------------------------------------------------
 
 -- E2
@@ -635,6 +719,8 @@ BEGIN
 	DEALLOCATE cur_diemtb;
 END
 
+EXEC sp_CapNhatDiemTB_DeTai;
+SELECT * FROM DETAI_DIEM;
 -- --------------------------------------------------------------------------------------------------------------
 
 -- E3
@@ -671,4 +757,5 @@ END
 CLOSE cur_xeploai;
 DEALLOCATE cur_xeploai;
 
+SELECT * FROM DETAI_DIEM;
 -- --------------------------------------------------------------------------------------------------------------
